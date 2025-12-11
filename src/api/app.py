@@ -8,21 +8,36 @@ from typing import List
 import asyncio
 import sys
 
+import sys
+import os
+
+# Fix Path issues on Vercel
+# Vercel runs from root, but sometimes imports fail if 'src' isn't explicitly valid.
+# Safest: Add current file's grandparent (project root) to sys.path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR)) # src/api -> src -> root
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # Windows asyncio fix for Playwright/Subprocesses
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-# Import existing core logic
-# Import API Engine
-from src.harvester.api_engine import SrealityApiEngine
-from src.common.config import settings
-
-from src.harvester.models import RawPropertyAd
-from src.cleaner.pipeline import DataCleaner
-from src.cleaner.enrichment import Enricher
-from src.reporting.analysis import FinancialAnalyst
-from src.reporting.generator import ReportGenerator
-
+try:
+    # Import existing core logic
+    # Import API Engine
+    from src.harvester.api_engine import SrealityApiEngine
+    from src.common.config import settings
+    
+    from src.harvester.models import RawPropertyAd
+    from src.cleaner.pipeline import DataCleaner
+    from src.cleaner.enrichment import Enricher
+    from src.reporting.analysis import FinancialAnalyst
+    from src.reporting.generator import ReportGenerator
+except ImportError as e:
+    import traceback
+    traceback.print_exc()
+    raise e
 app = FastAPI(title="RIA - Real Estate Investment Agent")
 
 # Mount static files (CSS, JS)
