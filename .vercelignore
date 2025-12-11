@@ -1,0 +1,12 @@
+# Vercel Ignore
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+tests/
+docs/
+investment_report.md
+requirements-dev.txt
+run.py
+debug_api.py

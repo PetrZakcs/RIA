@@ -1,0 +1,255 @@
+:root {
+    --bg-color: #0f1115;
+    --card-bg: #181b21;
+    --primary: #3b82f6;
+    --accent: #10b981;
+    --text-main: #ffffff;
+    --text-muted: #9ca3af;
+    --border: #2d3139;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Outfit', sans-serif;
+    margin: 0;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4rem;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+.badge {
+    background: var(--primary);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    margin-left: 2rem;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+nav a:hover {
+    color: var(--text-main);
+}
+
+.hero {
+    text-align: center;
+    margin-bottom: 3rem;
+    animation: fadeIn 0.8s ease-out;
+}
+
+h1 {
+    font-size: 3rem;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+}
+
+p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.search-box {
+    max-width: 700px;
+    margin: 0 auto 4rem auto;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.2s;
+}
+
+.input-wrapper:focus-within {
+    border-color: var(--primary);
+}
+
+input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 1rem;
+    font-size: 1rem;
+    outline: none;
+    font-family: inherit;
+}
+
+button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.1s, background 0.2s;
+}
+
+button:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+/* Results Grid */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+    animation: slideUp 0.5s ease-out;
+}
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border-color: #3f4451;
+}
+
+.card.recommended {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: linear-gradient(to bottom right, var(--card-bg), rgba(16, 185, 129, 0.05));
+}
+
+.tag {
+    position: absolute;
+    top: -10px;
+    right: 1.5rem;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.price {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.card-stats {
+    display: flex;
+    justify-content: space-between;
+    margin: 1.5rem 0;
+    padding: 1rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.value {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.good-yield {
+    color: var(--accent);
+}
+
+.btn-outline {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    padding: 0.8rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-outline:hover {
+    background: var(--border);
+}
+
+.highlight {
+    color: var(--primary);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
