@@ -26,10 +26,13 @@ from src.reporting.generator import ReportGenerator
 app = FastAPI(title="RIA - Real Estate Investment Agent")
 
 # Mount static files (CSS, JS)
-app.mount("/static", StaticFiles(directory="src/api/static"), name="static")
+# Use absolute paths for Vercel/Serverless compatibility
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 # Templates
-templates = Jinja2Templates(directory="src/api/templates")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
