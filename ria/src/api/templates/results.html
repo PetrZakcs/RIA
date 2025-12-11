@@ -1,0 +1,43 @@
+{% extends "index.html" %}
+
+{% block results %}
+<div class="results-container">
+    <h2>Analysis Results for: <span class="highlight">"{{ prompt }}"</span></h2>
+
+    <div class="cards-grid">
+        {% for item in results %}
+        <div class="card {% if item.metrics.is_good_deal %}recommended{% endif %}">
+            {% if item.metrics.is_good_deal %}
+            <div class="tag">💎 Top Pick</div>
+            {% endif %}
+
+            <div class="card-header">
+                <h3>{{ item.ad.layout_normalized or 'Flat' }} · {{ item.ad.floor_area_m2 }} m²</h3>
+                <span class="price">{{ "{:,.0f}".format(item.ad.price_czk).replace(',', ' ') }} CZK</span>
+            </div>
+
+            <div class="card-stats">
+                <div class="stat">
+                    <span class="label">Gross Yield</span>
+                    <span class="value {% if item.metrics.is_good_deal %}good-yield{% endif %}">{{
+                        item.metrics.gross_yield_percent }}%</span>
+                </div>
+                <div class="stat">
+                    <span class="label">Est. Rent</span>
+                    <span class="value">{{ "{:,.0f}".format(item.metrics.estimated_annual_rent_czk / 12).replace(',', '
+                        ') }} /mo</span>
+                </div>
+                <div class="stat">
+                    <span class="label">Distance</span>
+                    <span class="value">{{ item.ad.dist_center_km }} km</span>
+                </div>
+            </div>
+
+            <div class="card-actions">
+                <a href="{{ item.ad.source_url }}" target="_blank" class="btn-outline">View Listing</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
