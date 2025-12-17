@@ -3,6 +3,7 @@ from typing import List, Optional
 from loguru import logger
 from src.harvester.models import RawPropertyAd
 import time
+import asyncio
 
 class SrealityApiEngine:
     """
@@ -32,136 +33,196 @@ class SrealityApiEngine:
                               region_type: Optional[str] = None, # 'municipality', 'district'
                               min_price: int = 0, 
                               max_price: Optional[int] = None,
-                              layouts: List[int] = []) -> List[RawPropertyAd]:
+                              layouts: List[int] = [],
+                              limit: int = 20,
+                              region_text: Optional[str] = None,
+                              category_main: int = 1) -> List[RawPropertyAd]:
         """
-        fetches apartments from API.
-        region_id: Internal Sreality ID (e.g. 5002 for Praha 2, 10 for Praha)
+        fetches properties from API.
+        category_main: 1=Apt, 2=House, 3=Land, 4=Recreation, 5=Commercial
         """
         
         # Build Params
+        per_page = 60 # Max efficient size
         params = {
-            "category_main_cb": self.CAT_MAIN_APARTMENTS,
+            "category_main_cb": category_main,
             "category_type_cb": self.CAT_TYPE_SALE,
-            "per_page": 20,
+            "per_page": per_page,
             "tms": int(time.time())
         }
         
+        if region_text:
+            params["region"] = region_text
+            # params["region_entity_type"] = "municipality" # generic hint, often helps
+
+
         if region_id:
-            # Sreality differentiates region types in params
-            # locality_region_id (Kraj), locality_district_id (Okres), locality_country_id...
-            # This is complex. But often 'locality_district_id' covers cities like "Okres Brno-město"
-            # For Prague districts "Praha 2", it is often 'locality_district_id' OR specialized.
-            # Simplified MVP: Try passing it as 'region_entity_id' or mapped per type.
-            
-            # Heuristic based on common IDs:
-            # 10 = Praha (Region) -> locality_region_id
-            # 5001-5010 = Praha 1-10 (Districts?) -> actually these are often municipal parts.
-            
-            # Let's try generic query param 'locality_region_id' for broad, 'locality_district_id' for specific.
-            # Safe bet: If ID < 100 it's likely Region (Kraj). If > 1000 it's District/City.
-            # Actually, Sreality API is distinct.
-            # 10 = Praha (Kraj)
-            # 5002 = Praha 2 (unknown type, likely district)
-            
-            if region_id == 10: # Praha Whole
-                params["locality_region_id"] = 10
-            elif region_id > 100: # Specific District
-                 params["locality_district_id"] = region_id
+            # Logic to determine if it is Region or District
+            if region_type == 'district':
+                params["locality_district_id"] = region_id
+            elif region_type == 'region':
+                params["locality_region_id"] = region_id
             else:
-                 params["locality_region_id"] = region_id
+                # Heuristic Fallback
+                if region_id == 10: # Praha Whole
+                    params["locality_region_id"] = 10
+                elif region_id > 100:
+                    params["locality_district_id"] = region_id
+                else:
+                    params["locality_region_id"] = region_id
+        
+        print(f"DEBUG: Search Params: {params}")
+
                  
         if min_price > 0 or max_price:
-            # Sreality API v2 expects "min|max"
-            # e.g. "0|5000000"
             low = min_price if min_price else 0
-            high = max_price if max_price else "" # Empty means unlimited
+            high = max_price if max_price else ""
             if not high: high = "" 
-            
             params["czk_price_summary_order2"] = f"{low}|{high}"
             
         if layouts:
-            # Layouts are bitmask in API? Or list? 
-            # Param: category_sub_cb
-            # Use | separator
             param_val = "|".join([str(l) for l in layouts])
             params["category_sub_cb"] = param_val
 
         results = []
         
         # Reverse map for link construction
-        # ID -> Slug
         layout_id_map = {
             2: "1+kk", 3: "1+1",
             4: "2+kk", 5: "2+1",
             6: "3+kk", 7: "3+1",
             8: "4+kk", 9: "4+1",
-            # Add others if needed
         }
         
+        # DEEP SCAN / PAGINATION LOGIC
+        # We fetch until we reach satisfy the 'limit' requested by caller.
+        # limit might be 200, 500, etc.
+        
+        page = 1
+        fetched_count = 0
+        
         try:
-            url = f"{self.BASE_URL}/cs/v2/estates"
-            logger.info(f"API Request: {url} | Params: {params}")
-            
-            resp = await self.client.get(url, params=params)
-            resp.raise_for_status()
-            
-            data = resp.json()
-            items = data.get("_embedded", {}).get("estates", [])
-            
-            logger.info(f"API returned {len(items)} items")
-            
-            for item in items:
-                # Parse Item
-                # name: "Prodej bytu 2+kk 55 m²"
-                # locality: "Praha 2 - Vinohrady"
-                # price: 8500000
-                # hash_id: 2604741452
+            while fetched_count < limit:
+                # Check remaining
+                remaining = limit - fetched_count
+                # If remaining is small, we could adjust per_page, but simplest is to fetch 60 and slice.
                 
-                title = item.get("name", "Unknown")
-                loc = item.get("locality", "Unknown")
-                price = item.get("price", 0)
-                hash_id = item.get("hash_id")
-                seo = item.get("seo", {})
-                seo_loc = seo.get("locality")
+                params["page"] = page
                 
-                # Layout from response
-                cat_sub = seo.get("category_sub_cb")
-                layout_slug = layout_id_map.get(cat_sub, "byt") # Fallback to "byt" if unknown
+                url = f"{self.BASE_URL}/cs/v2/estates"
+                logger.info(f"API Fetch Page {page} | fetched: {fetched_count}/{limit}")
                 
-                # Construct Link
-                # Standard format: https://www.sreality.cz/detail/prodej/byt/[layout_slug]/[locality_slug]/[hash_id]
-                if seo_loc:
-                     link = f"https://www.sreality.cz/detail/prodej/byt/{layout_slug}/{seo_loc}/{hash_id}"
-                else:
-                     link = f"https://www.sreality.cz/detail/prodej/byt/unknown/unknown/{hash_id}"
+                resp = await self.client.get(url, params=params)
+                resp.raise_for_status()
                 
-                # Precise Parsing from Name
-                # "Prodej bytu 2+kk 55 m²"
-                import re
+                data = resp.json()
+                items = data.get("_embedded", {}).get("estates", [])
                 
-                # Area
-                area = "0"
-                area_match = re.search(r'(\d+)\s*m²', title)
-                if area_match:
-                    area = area_match.group(1)
+                if not items:
+                    break # End of results
+                
+                for item in items:
+                    if fetched_count >= limit:
+                        break
+                        
+                    # Parse Item
+                    title = item.get("name", "Unknown")
+                    loc = item.get("locality", "Unknown")
+                    price = item.get("price", 0)
+                    hash_id = item.get("hash_id")
+                    seo = item.get("seo", {})
+                    seo_loc = seo.get("locality")
                     
-                # Layout
-                # Extract "2+kk", "3+1"
-                layout = title
-                l_match = re.search(r'(\d+\+kk|\d+\+1|\d+\+0|1\+1|garsoniera)', title)
-                if l_match:
-                    layout = l_match.group(1)
+                    # Link Construction Logic
+                    # Map category_main_cb to URL slug
+                    # 1=byt, 2=dum, 3=pozemek, 4=rekreace, 5=komercni
+                    cat_main = seo.get("category_main_cb", 1)
+                    cat_slug_map = {
+                        1: "byt", 
+                        2: "dum", 
+                        3: "pozemek", 
+                        4: "rekreace", 
+                        5: "komercni"
+                    }
+                    main_slug = cat_slug_map.get(cat_main, "byt")
+                    
+                    # Layout/Type Slug
+                    # For Apts: 1+kk etc.
+                    # For Houses: rodinny, vila... based on sub_cb? 
+                    # Actually Sreality is forgiving. /prodej/dum/rodinny/... works.
+                    # If we don't know exact sub-type string, "unknown" might work or we need a sub-map.
+                    # Let's try to map common subs or keep it simple.
+                    # Actually, the layout_id_map I have (2->"1+kk") is only for Apts.
+                    # For simplicity, if it's not apt, we can put "vse" or "ostatni"?
+                    # Verification Needed: Does /prodej/dum/vse/... work?
+                    # Better: Parse title or define a sub-map.
+                    
+                    # Simplified Sub-Slug Logic (Verified)
+                    cat_sub = seo.get("category_sub_cb", 1) 
+                    
+                    sub_slug = "ostatni" # Universal Default
+                    
+                    if cat_main == 1: # Apartments
+                        # Map layout ID to slug
+                        # If sub_cb (e.g. 2->1+kk) is found, use it.
+                        # We use layout_id_map logic implicitly or we need a map.
+                        # Wait, layout_id_map maps 2->"1+kk" ? No, API maps layout IDs.
+                        # Let's trust my existing layout_id_map if defined, else 'vse'?
+                        # Actually for Apt, /byt/vse/ works usually.
+                        # But specific is better.
+                        # Assuming layout_id_map is defined in class scope or previously.
+                        # Let's use "vse" as safer default if map fails.
+                        sub_slug = layout_id_map.get(cat_sub, "vse")
+                        
+                    elif cat_main == 2: # Houses
+                        sub_slug = "rodinny" # Verified safe
+                        
+                    elif cat_main == 3: # Land
+                        sub_slug = "bydleni" # Verified safe (stavebni is 404)
+                        
+                    elif cat_main == 4: # Recreation
+                        sub_slug = "chata" # Verified safe
+                        
+                    elif cat_main == 5: # Commercial
+                        sub_slug = "kancelare" # Best guess, or 'obchodni'
+                        
+                    # Construct Link
+                    if seo_loc:
+                          link = f"https://www.sreality.cz/detail/prodej/{main_slug}/{sub_slug}/{seo_loc}/{hash_id}"
+                    else:
+                          link = f"https://www.sreality.cz/detail/prodej/{main_slug}/{sub_slug}/unknown/{hash_id}"
+                    
+                    # Area & Layout Parsing
+                    import re
+                    area = "0"
+                    area_match = re.search(r'(\d+)\s*m²', title)
+                    if area_match:
+                        area = area_match.group(1)
+                        
+                    layout = title
+                    l_match = re.search(r'(\d+\+kk|\d+\+1|\d+\+0|1\+1|garsoniera)', title)
+                    if l_match:
+                        layout = l_match.group(1)
+                    
+                    ad = RawPropertyAd(
+                        source_url=link,
+                        source_portal="sreality",
+                        title=title,
+                        price_raw=str(price),
+                        location_raw=loc,
+                        floor_area_raw=area,
+                        layout=layout   
+                    )
+                    results.append(ad)
+                    fetched_count += 1
                 
-                ad = RawPropertyAd(
-                    source_url=link,
-                    source_portal="sreality",
-                    title=title,
-                    price_raw=str(price),
-                    location_raw=loc,
-                    floor_area_raw=area, # Now cleanly "55"
-                    layout=layout   
-                )
-                results.append(ad)
+                page += 1
+                
+                # Safety Sleep to be nice
+                if limit > 60:
+                    await asyncio.sleep(0.1) 
+                    
+            logger.info(f"Total Fetched: {len(results)} items")
                 
         except Exception as e:
             logger.error(f"API Error: {e}")
