@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-container"
+    style="max-width: 400px; margin: 5rem auto; padding: 2rem; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border-color);">
+    <h2 style="text-align: center; margin-bottom: 2rem; color: var(--text-primary);">Přihlášení</h2>
+
+    <form id="loginForm">
+        <div class="input-group" style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Email</label>
+            <input type="email" id="email" required
+                style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);">
+        </div>
+
+        <div class="input-group" style="margin-bottom: 2rem;">
+            <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Heslo</label>
+            <input type="password" id="password" required
+                style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-primary);">
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Přihlásit</button>
+    </form>
+
+    <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary);">
+        Nemáte účet? <a href="/register" style="color: var(--primary-color);">Zaregistrujte se</a>
+    </p>
+
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Store Token in LocalStorage (for client-side JS)
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user_tier', data.subscription_tier);
+
+                // Store Token in Cookie (for Server-Side Middleware)
+                document.cookie = `access_token=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
+
+                // Check for saved search from Redirect Flow
+                const savedPrompt = localStorage.getItem('pending_prompt');
+
+                if (savedPrompt) {
+                    window.location.href = '/?auto_search=true';
+                } else {
+                    window.location.href = '/';
+                }
+            } else {
+                alert('Login failed: Invalid credentials');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('An error occurred');
+        }
+    });
+</script>
+{% endblock %}

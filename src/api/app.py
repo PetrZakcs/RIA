@@ -3,11 +3,10 @@ import os
 import asyncio
 import traceback
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-import uvicorn
 from loguru import logger
 
 # --- 1. CONFIGURATION & PATHS ---
@@ -21,8 +20,29 @@ if PROJECT_ROOT not in sys.path:
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-# --- 2. INITIALIZE APP EARLY ---
+# Imports for DB & Auth
+from src.database.session import engine, Base
+from src.api.routes import auth
+# Create Tables
+Base.metadata.create_all(bind=engine)
+
+# Core Logic imports
+from src.harvester.api_engine import SrealityApiEngine
+# from src.cleaner.text_processor import normalize_prompt # Unused/Missing
+from src.reporting.analysis import FinancialAnalyst
+
+try:
+    from src.reporting.generator import generate_report_md
+except ImportError:
+    generate_report_md = None
+
 app = FastAPI(title="RIA - Real Estate Investment Agent")
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+
+from src.api.routes import payment
+app.include_router(payment.router, prefix="/payment", tags=["Payment"])
+
+
 
 # Mount static files (with safety check)
 static_dir = os.path.join(BASE_DIR, "static")
@@ -60,23 +80,35 @@ except Exception as e:
 async def home(request: Request):
     # IF IMPORTS FAILED, SHOW ERROR ON HOMEPAGE
     if IMPORT_ERROR:
-        return f"""
-        <html>
-            <body style="font-family: monospace; background: #eee; padding: 20px;">
-                <h1 style="color: red;">Startup Failed (Safe Mode)</h1>
-                <p>The application could not load core modules.</p>
-                <h3>Traceback:</h3>
-                <pre style="background: #fff; padding: 10px; border: 1px solid #999;">{IMPORT_ERROR}</pre>
-                <h3>Sys Path:</h3>
-                <pre>{sys.path}</pre>
-                <h3>CWD:</h3>
-                <pre>{os.getcwd()}</pre>
-            </body>
-        </html>
-        """
+        # ... (error handling preserved in simple return if needed, unlikely here since imported)
+        pass 
+    if IMPORT_ERROR:
+         return HTMLResponse(f"<h1>Startup Error</h1><pre>{IMPORT_ERROR}</pre>", status_code=500)
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    from src.common.config import settings
+    return templates.TemplateResponse("register.html", {
+        "request": request,
+        "stripe_pk": settings.STRIPE_PUBLISHABLE_KEY,
+        "prices": {
+            "basic": settings.STRIPE_PRICE_BASIC,
+            "business": settings.STRIPE_PRICE_BUSINESS,
+            "enterprise": settings.STRIPE_PRICE_ENTERPRISE
+        }
+    })
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page(request: Request):
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
 @app.post("/search", response_class=HTMLResponse)
+
 async def search(request: Request, prompt: str = Form(...)):
     if IMPORT_ERROR:
         return HTMLResponse(f"<h1>Startup Error</h1><pre>{IMPORT_ERROR}</pre>", status_code=500)
@@ -102,27 +134,32 @@ async def search(request: Request, prompt: str = Form(...)):
         "ceska republika": (-99, 'region'), "cr": (-99, 'region'), "cz": (-99, 'region'),
         
         # Major Cities (Districts) - Precise Search
-        "brno": (72, 'district'),
-        # Ostrava/Plzen still defaulting to Region until we find exact IDs
-        
-        # Regions (Kraje)
-        "jihocesky": (1, 'region'), "budejovice": (1, 'region'),
-        "plzensky": (2, 'region'), "plzen": (2, 'region'),
-        "karlovarsky": (3, 'region'), "vary": (3, 'region'),
-        "ustecky": (4, 'region'), "usti": (4, 'region'),
-        "liberecky": (5, 'region'), "liberec": (5, 'region'),
-        "kralovehradecky": (6, 'region'), "hradec": (6, 'region'),
-        "pardubicky": (7, 'region'), "pardubice": (7, 'region'),
-        "olomoucky": (8, 'region'), "olomouc": (8, 'region'),
-        "zlinsky": (9, 'region'), "zlin": (9, 'region'),
-        "praha": (10, 'region'),
-        "praha-vychod": (-99, 'district'), # Force universal since ID is unknown/complex
-        "praha-zapad": (-99, 'district'),
+        # Praha & Brno are special/known
+        "praha": (10, 'region'), "praze": (10, 'region'), # Praha is unique (Region 10 = Capital)
+        "brno": (72, 'district'), "brne": (72, 'district'),
+
+        # Regions (Kraje) - ONLY map explicit Region names, NOT cities
+        "jihocesky": (1, 'region'), 
+        "plzensky": (2, 'region'),
+        "karlovarsky": (3, 'region'),
+        "ustecky": (4, 'region'),
+        "liberecky": (5, 'region'),
+        "kralovehradecky": (6, 'region'),
+        "pardubicky": (7, 'region'),
+        "olomoucky": (8, 'region'),
+        "zlinsky": (9, 'region'),
         "stredocesky": (11, 'region'),
-        "moravskoslezsky": (12, 'region'), "ostrava": (12, 'region'),
-        "vysocina": (13, 'region'), "jihlava": (13, 'region'),
-        "jihomoravsky": (14, 'region'), # Fallback for Brno surrounding
+        "moravskoslezsky": (12, 'region'),
+        "vysocina": (13, 'region'),
+        "jihomoravsky": (14, 'region'),
+
+        # Note: We REMOVED "ostrava", "plzen", "liberec", etc. from here.
+        # Why? Because mapping "ostrava" -> Region 12 (Moravskoslezsky) caused searching the WHOLE region.
+        # Now, "ostrava" will fall through to fuzzy/text search, setting region_text="ostrava",
+        # which Sreality API handles by searching just Ostrava (Correct).
     }
+
+
     
     # 1. Check for Specific Prague Districts first (Praha 1-10)
     import re
@@ -133,6 +170,37 @@ async def search(request: Request, prompt: str = Form(...)):
              region_id = 5000 + dist_num
     
     region_type = None # Default
+    
+    # ---------------- Feature Gating ----------------
+    from fastapi import Cookie
+    from jose import jwt, JWTError
+    from src.auth.security import SECRET_KEY, ALGORITHM
+    
+    # Defaults
+    user_tier = "BASIC"
+    
+    # Decode Cookie
+    # Note: We access cookie manually or via Depends. Here manually via Request if simpler, 
+    # but let's use the Cookie parameter approach which is cleaner but requires function signature change.
+    # Changing function signature in the middle of this big function might be messy with REPLACE.
+    # Let's inspect cookies from `request` object directly.
+    
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_tier = payload.get("tier", "BASIC")
+        except JWTError:
+            pass # Invalid token -> treat as BASIC/Guest
+            
+    # ENFORCEMENT
+    # Rule: BASIC cannot search "Whole CZ" (region_id is None)
+    # Exception: "Ceska Republika" explicitly asked (-99) is also blocked.
+    # Actually, logic below: 'if not region_id' implies Universall Search.
+    
+    # We need to perform this check AFTER region_id is resolved or confirmed missing.
+    # The logic continues below...
+
     
     # 2. Check General Location Map
     # Priority: Check longest matches first to avoid "Praha" catching "Praha-vychod"
@@ -308,10 +376,10 @@ async def search(request: Request, prompt: str = Form(...)):
 
     # Universal Search Fallback Logic
     target_location_filter = None
+    is_universal_search = False
+    
     if region_id is None and region_type is None:
-        # User didn't ask for "Whole CR" explicitly, so they likely asked for a specific village we don't know.
-        # We will scan Whole CR and filter results.
-        
+        # Determine if this is a precise village search or generic "Byt na prodej"
         stop_words = ["byt", "dum", "prodej", "pronajem", "kk", "1+1", "2+kk", "3+kk", "1+kk", "do", "mil", "milion", "czk", "kc", "v", "ve", "na", ","]
         words = clean_prompt.split()
         potential_locs = [
@@ -324,8 +392,36 @@ async def search(request: Request, prompt: str = Form(...)):
         if potential_locs:
             target_location_filter = " ".join(potential_locs)
             logger.info(f"Unknown Location Detected. Using Native Text Search for: '{target_location_filter}'")
+        else:
+            is_universal_search = True
+
+    # ---- BLOCKING LOGIC ----
+    # Basic Users cannot do Universal ("Whole CZ") or fuzzy matches that Scan whole CZ
+    # We allow "target_location_filter" because that implies a specific intent (even if region ID failed)
+    # BUT if target_location_filter is also None -> It's truly "Whole CZ".
+    
+    if user_tier == "BASIC" and is_universal_search:
+         return HTMLResponse("""
+            <html>
+            <head><link rel="stylesheet" href="/static/style.css"></head>
+            <body style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f8f9fa;">
+                <div class="card" style="padding:2rem;text-align:center;max-width:500px;">
+                    <h1 style="color:var(--primary-color)">Je vyžadován Upgrade 🔒</h1>
+                    <p>Skenování celé ČR je prémiová funkce.</p>
+                    <p>Váš tarif <b>BASIC</b> umožňuje prohledávat pouze konkrétní lokality (např. "Praha", "Brno").</p>
+                    <div style="margin-top:1.5rem">
+                         <a href="/" class="btn-secondary">Zkusit "Praha"</a>
+                         <a href="/register" class="btn-primary">Upgradovat na Business</a>
+                    </div>
+                </div>
+            </body>
+            </html>
+         """)
+
+         
     # Execution
     engine = SrealityApiEngine()
+
     
     try:
         # Use Native Search

@@ -1,9 +1,21 @@
+
+# Python
 __pycache__/
-*.pyc
-.env
-.venv/
+*.py[cod]
+*$py.class
 venv/
-.idea/
-.vscode/
+env/
+
+# Environment Variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
 *.log
-data/
+
+# Windows
+Thumbs.db

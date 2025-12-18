@@ -1,52 +1,55 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RIA | AI Real Estate Agent</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-</head>
+{% block content %}
+<div class="hero">
+    <h1>Najděte investiční byt pomocí AI</h1>
+    <p>Zadejte svá kritéria a nechte autonomního agenta prohledat trh a vypočítat výnos za vás.</p>
+</div>
 
-<body>
-    <div class="container">
-        <header>
-            <div class="logo"><a href="/" style="text-decoration:none; color:inherit;">🏢 RIA <span
-                        class="badge">BETA</span></a></div>
-            <nav>
-                <a href="/">Dashboard</a>
-                <a href="#" onclick="alert('Settings will be available in v1.0'); return false;">Settings</a>
-            </nav>
-        </header>
-
-        <main>
-            <div class="hero">
-                <h1>Find High-Yield Properties with AI</h1>
-                <p>Enter your investment criteria and let the autonomous agent scour the market for you.</p>
-            </div>
-
-            <form action="/search" method="post" class="search-box">
-                <div class="input-wrapper">
-                    <input type="text" name="prompt" placeholder="e.g. 'Apartment in Prague, max 6M CZK, min yield 5%'"
-                        autocomplete="off" required>
-                    <button type="submit">
-                        <span>Analyze Market</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </button>
-                </div>
-            </form>
-
-            <div id="results-area">
-                <!-- Results will be loaded here -->
-                {% block results %}{% endblock %}
-            </div>
-        </main>
+<form id="searchForm" action="/search" method="post" class="search-box">
+    <div class="input-wrapper">
+        <input type="text" id="promptInput" name="prompt" placeholder="např. 'Byt v Praze, do 6M, výnos 5%'"
+            autocomplete="off" required>
+        <button type="submit">
+            <span>Analyzovat trh</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </button>
     </div>
-</body>
+</form>
 
-</html>
+
+<div id="results-area">
+    <!-- Results will be loaded here if rendered via /search -->
+    {% block results %}{% endblock %}
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Auto-fill logic
+        const pendingPrompt = localStorage.getItem('pending_prompt');
+        const urlParams = new URLSearchParams(window.location.search);
+        const autoSearch = urlParams.get('auto_search');
+        const token = localStorage.getItem('access_token');
+
+        if (token && autoSearch && pendingPrompt) {
+            document.getElementById('promptInput').value = pendingPrompt;
+            localStorage.removeItem('pending_prompt'); // Clear it
+            document.getElementById('searchForm').submit();
+        }
+    });
+
+    document.getElementById('searchForm').addEventListener('submit', (e) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            e.preventDefault();
+            const val = document.getElementById('promptInput').value;
+            localStorage.setItem('pending_prompt', val);
+            window.location.href = '/register';
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 2rem auto;">
+    <h1 style="color: var(--primary-color);">Můj Profil 👤</h1>
+
+    <!-- User Info Card -->
+    <div class="card" style="margin-bottom: 2rem;">
+        <h2>Osobní Údaje</h2>
+        <div class="form-group">
+            <label>Jméno</label>
+            <p id="profile-name" style="font-weight: 500;">Načítám...</p>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <p id="profile-email" style="font-weight: 500;">Načítám...</p>
+        </div>
+        <div class="form-group">
+            <label>Aktuální Tarif</label>
+            <span id="profile-tier" class="badge" style="font-size: 1rem;">...</span>
+        </div>
+    </div>
+
+    <!-- Subscription Management -->
+    <div class="card" style="margin-bottom: 2rem; border-left: 5px solid var(--accent-color);">
+        <h2>Nastavení Předplatného 💳</h2>
+        <p>Spravujte své fakturační údaje, stahujte faktury nebo změňte tarif.</p>
+
+        <div id="sub-actions" style="margin-top: 1.5rem;">
+            <!-- Dynamic Buttons injected via JS -->
+            <button class="btn-primary" onclick="manageBilling()">Načítám možnosti...</button>
+        </div>
+    </div>
+
+    <!-- Legal Section -->
+    <div class="card">
+        <h2>Právní Informace ⚖️</h2>
+        <ul style="list-style: none; padding: 0;">
+            <li style="margin-bottom: 0.5rem;"><a href="#" onclick="alert('TODO: Vložit VOP')"
+                    style="color: inherit; text-decoration: underline;">Obchodní podmínky (VOP)</a></li>
+            <li style="margin-bottom: 0.5rem;"><a href="#" onclick="alert('TODO: GDPR')"
+                    style="color: inherit; text-decoration: underline;">Ochrana osobních údajů (GDPR)</a></li>
+            <li><a href="#" onclick="alert('TODO: Cookies')"
+                    style="color: inherit; text-decoration: underline;">Nastavení Cookies</a></li>
+        </ul>
+        <hr style="margin: 1.5rem 0; opacity: 0.2;">
+        <button class="btn-text" style="color: var(--danger-color);" onclick="deleteAccount()">Smazat účet</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
+
+        // Decode JWT locally for simple display (or fetch user profile endpoint if we had one)
+        // For MVP, we parse the JWT payload manually
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const user = JSON.parse(jsonPayload);
+
+            document.getElementById('profile-email').innerText = user.sub; // Email is subject
+            document.getElementById('profile-tier').innerText = user.tier || "BASIC";
+            document.getElementById('profile-name').innerText = "Uživatel"; // JWT doesn't have name currently
+
+            setupButtons(user.sub, user.tier);
+
+        } catch (e) {
+            console.error("Token error", e);
+            logout();
+        }
+    });
+
+    function setupButtons(email, tier) {
+        const container = document.getElementById('sub-actions');
+        container.innerHTML = "";
+
+        if (tier === "BASIC") {
+            // Upsell
+            container.innerHTML = `
+                <p style="margin-bottom:1rem; color:#666;">Právě využíváte základní verzi zdarma.</p>
+                <a href="/register" class="btn-primary">Upgradovat na Business</a>
+            `;
+        } else {
+            // Manage Subscription (Stripe Portal)
+            const btn = document.createElement('button');
+            btn.className = "btn-secondary";
+            btn.innerText = "Spravovat fakturaci / Změnit tarif";
+            btn.onclick = () => openStripePortal(email);
+            container.appendChild(btn);
+        }
+    }
+
+    async function openStripePortal(email) {
+        const btn = document.querySelector('#sub-actions button');
+        btn.innerText = "Přesměrovávám...";
+        btn.disabled = true;
+
+        try {
+            // Reuse CheckoutRequest structure: price_id is dummy
+            const response = await fetch('/payment/create-portal-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    price_id: 'portal',
+                    user_email: email
+                })
+            });
+
+            const data = await response.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                alert("Chyba: " + (data.error || "Nelze otevřít portál."));
+                btn.innerText = "Spravovat fakturaci";
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Chyba při komunikaci se serverem.");
+            btn.disabled = false;
+        }
+    }
+
+    function deleteAccount() {
+        if (confirm("Opravdu chcete smazat účet? Tato akce je nevratná.")) {
+            alert("Požadavek odeslán na podporu (demo).");
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,126 @@
+{
+    "_meta": {
+        "source": "Market Estimations 2024 (RealityMix/Deloitte Proxy)",
+        "units": "CZK/m2"
+    },
+    "default": {
+        "rent": 200,
+        "sale": 60000
+    },
+    "regions": {
+        "Praha": {
+            "rent": 350,
+            "sale": 110000
+        },
+        "Středočeský": {
+            "rent": 230,
+            "sale": 75000
+        },
+        "Jihomoravský": {
+            "rent": 240,
+            "sale": 80000
+        },
+        "Moravskoslezský": {
+            "rent": 190,
+            "sale": 45000
+        },
+        "Plzeňský": {
+            "rent": 220,
+            "sale": 65000
+        },
+        "Liberecký": {
+            "rent": 210,
+            "sale": 60000
+        },
+        "Ústecký": {
+            "rent": 180,
+            "sale": 35000
+        },
+        "Jihočeský": {
+            "rent": 200,
+            "sale": 60000
+        },
+        "Královéhradecký": {
+            "rent": 210,
+            "sale": 65000
+        },
+        "Pardubický": {
+            "rent": 200,
+            "sale": 65000
+        },
+        "Vysočina": {
+            "rent": 190,
+            "sale": 55000
+        },
+        "Olomoucký": {
+            "rent": 200,
+            "sale": 58000
+        },
+        "Zlínský": {
+            "rent": 190,
+            "sale": 55000
+        },
+        "Karlovarský": {
+            "rent": 180,
+            "sale": 40000
+        }
+    },
+    "cities": {
+        "praha 1": {
+            "rent": 450,
+            "sale": 180000
+        },
+        "praha 2": {
+            "rent": 420,
+            "sale": 150000
+        },
+        "praha": {
+            "rent": 380,
+            "sale": 120000
+        },
+        "brno": {
+            "rent": 290,
+            "sale": 95000
+        },
+        "ostrava": {
+            "rent": 210,
+            "sale": 50000
+        },
+        "plzeň": {
+            "rent": 230,
+            "sale": 70000
+        },
+        "liberec": {
+            "rent": 220,
+            "sale": 65000
+        },
+        "olomouc": {
+            "rent": 230,
+            "sale": 75000
+        },
+        "české budějovice": {
+            "rent": 220,
+            "sale": 70000
+        },
+        "hradec králové": {
+            "rent": 230,
+            "sale": 75000
+        },
+        "ústí nad labem": {
+            "rent": 190,
+            "sale": 38000
+        },
+        "pardubice": {
+            "rent": 220,
+            "sale": 75000
+        },
+        "zlín": {
+            "rent": 210,
+            "sale": 65000
+        },
+        "karlovy vary": {
+            "rent": 210,
+            "sale": 60000
+        }
+    }
+}

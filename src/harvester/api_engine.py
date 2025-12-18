@@ -186,23 +186,32 @@ class SrealityApiEngine:
                     elif cat_main == 5: # Commercial
                         sub_slug = "kancelare" # Best guess, or 'obchodni'
                         
-                    # Construct Link
-                    if seo_loc:
-                          link = f"https://www.sreality.cz/detail/prodej/{main_slug}/{sub_slug}/{seo_loc}/{hash_id}"
-                    else:
-                          link = f"https://www.sreality.cz/detail/prodej/{main_slug}/{sub_slug}/unknown/{hash_id}"
-                    
                     # Area & Layout Parsing
                     import re
                     area = "0"
-                    area_match = re.search(r'(\d+)\s*m²', title)
+                    # Match: 50 m², 50m2, 50 m2
+                    area_match = re.search(r'(\d+)\s*(?:m²|m2)', title, re.IGNORECASE)
                     if area_match:
                         area = area_match.group(1)
+                    
+                    # Link Construction Robustness
+                    # Sreality Redirects if 'seo_loc' is present and ID is correct.
+                    # If seo_loc is missing, we use 'unknown', but we must ensure valid slugs.
+                    
+                    final_sub_slug = sub_slug
+                    # Special fix for Apartments: 1+kk needs to be URL safe? Browsers handle + ok usually.
+                    if cat_main == 1 and sub_slug not in layout_id_map.values():
+                        final_sub_slug = "vse"
+
+                    safe_loc = seo_loc if seo_loc else "unknown"
+                    
+                    link = f"https://www.sreality.cz/detail/prodej/{main_slug}/{final_sub_slug}/{safe_loc}/{hash_id}"
                         
                     layout = title
-                    l_match = re.search(r'(\d+\+kk|\d+\+1|\d+\+0|1\+1|garsoniera)', title)
+                    l_match = re.search(r'(\d+\+kk|\d+\+1|\d+\+0|1\+1|garsoniera)', title, re.IGNORECASE)
                     if l_match:
                         layout = l_match.group(1)
+
                     
                     ad = RawPropertyAd(
                         source_url=link,

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIA | AI Real Estate Agent</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Vercel Analytics -->
+    <script>
+        window.va = window.va || function () { (window.va.q = window.va.q || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Vercel Speed Insights -->
+    <script>
+        window.si = window.si || function () { (window.si.q = window.si.q || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
+
+
+    <script>
+        // Check Auth State
+        document.addEventListener("DOMContentLoaded", () => {
+            const token = localStorage.getItem('access_token');
+            const navAuth = document.getElementById('nav-auth');
+
+            if (token) {
+                navAuth.innerHTML = `
+                    <span style="margin-right:1rem;color:var(--text-secondary);">Přihlášen</span>
+                    <a href="#" onclick="logout()">Odhlásit</a>
+                `;
+            } else {
+                navAuth.innerHTML = `
+                    <a href="/login" class="btn-text">Přihlásit</a>
+                    <a href="/register" class="btn-primary-sm">Registrovat</a>
+                `;
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user_tier');
+            window.location.href = '/login';
+        }
+
+    </script>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo"><a href="/" style="text-decoration:none; color:inherit;">🏢 RIA <span
+                        class="badge">BETA</span></a></div>
+            <nav id="main-nav">
+                <a href="/dashboard">Můj Profil</a> <!-- Renamed from Dashboard to mirror context -->
+                <a href="/">Vyhledávání</a>
+                <span id="nav-auth"></span>
+            </nav>
+
+        </header>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+
+</html>

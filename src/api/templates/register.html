@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="pricing-container" style="max-width: 1200px; margin: 3rem auto; padding: 2rem;">
+    <h1
+        style="text-align: center; margin-bottom: 1rem; font-size: 2.5rem; background: linear-gradient(135deg, #FFF 0%, #A5A5A5 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        Vyberte si tarif</h1>
+    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 3rem;">Odemkněte plný potenciál AI
+        investování</p>
+
+    <div class="pricing-grid"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+        <!-- BASIC -->
+        <div class="card pricing-card" onclick="selectPlan('BASIC')"
+            style="cursor: pointer; border: 1px solid var(--border-color); transition: all 0.3s;">
+            <h3>BASIC</h3>
+            <div class="price">2 490 Kč<span>/měs</span></div>
+            <p>Pro začátečníky</p>
+            <ul>
+                <li>Sken každých 30 min</li>
+                <li>Max 1 Region</li>
+                <li>Základní AI analýza</li>
+            </ul>
+            <button class="btn-secondary" style="width: 100%; margin-top: 1rem;">Vybrat Basic</button>
+        </div>
+
+        <!-- BUSINESS -->
+        <div class="card pricing-card featured" onclick="selectPlan('BUSINESS')"
+            style="cursor: pointer; border: 2px solid var(--primary-color); position: relative;">
+            <div class="badge"
+                style="position: absolute; top: -10px; right: 20px; background: var(--primary-color); padding: 4px 12px; border-radius: 12px; font-size: 0.8rem;">
+                Nejoblíbenější</div>
+            <h3>BUSINESS</h3>
+            <div class="price">6 900 Kč<span>/měs</span></div>
+            <p>Pro aktivní investory</p>
+            <ul>
+                <li>Real-time (1-5 min)</li>
+                <li>Celá ČR</li>
+                <li>Pokročilá AI výnosnost</li>
+                <li>Telegram/SMS notifikace</li>
+            </ul>
+            <button class="btn-primary" style="width: 100%; margin-top: 1rem;">Vybrat Business</button>
+        </div>
+
+        <!-- ENTERPRISE -->
+        <div class="card pricing-card" onclick="selectPlan('ENTERPRISE')"
+            style="cursor: pointer; border: 1px solid var(--border-color);">
+            <h3>ENTERPRISE</h3>
+            <div class="price">15 900 Kč+<span>/měs</span></div>
+            <p>Pro fondy a agentury</p>
+            <ul>
+                <li>Instantní prioritní sken</li>
+                <li>Vlastní filtry + Off-market</li>
+                <li>Vlastní AI modely</li>
+                <li>API & Webhooky</li>
+            </ul>
+            <button class="btn-secondary" style="width: 100%; margin-top: 1rem;">Kontaktovat obchod</button>
+        </div>
+    </div>
+
+
+    <!-- Registration Form (Hidden initially) -->
+    <div id="regFormContainer" style="max-width: 400px; margin: 4rem auto; display: none; animation: fadeIn 0.5s;">
+        <h3 style="text-align: center; margin-bottom: 1.5rem;">Vytvořit účet pro <span id="selectedPlanName"
+                style="color: var(--primary-color);"></span></h3>
+        <form id="registerForm">
+            <input type="hidden" id="tier" value="BASIC">
+
+            <div class="input-group" style="margin-bottom: 1rem;">
+                <label>Jméno a příjmení</label>
+                <input type="text" id="fullname" required
+                    style="width: 100%; padding: 10px; border-radius: 6px; background: var(--bg-body); border: 1px solid var(--border-color); color: white;">
+            </div>
+
+            <div class="input-group" style="margin-bottom: 1rem;">
+                <label>Email</label>
+                <input type="email" id="reg_email" required
+                    style="width: 100%; padding: 10px; border-radius: 6px; background: var(--bg-body); border: 1px solid var(--border-color); color: white;">
+            </div>
+
+            <div class="input-group" style="margin-bottom: 2rem;">
+                <label>Heslo</label>
+                <input type="password" id="reg_password" required
+                    style="width: 100%; padding: 10px; border-radius: 6px; background: var(--bg-body); border: 1px solid var(--border-color); color: white;">
+            </div>
+
+            <button type="submit" class="btn-primary" style="width: 100%;">Vytvořit účet</button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    // Data injected from Backend
+    const PRICES = {
+        "BASIC": "{{ prices.basic }}",
+        "BUSINESS": "{{ prices.business }}",
+        "ENTERPRISE": "{{ prices.enterprise }}"
+    };
+    const STRIPE_KEY = "{{ stripe_pk }}";
+
+    function selectPlan(plan) {
+        document.getElementById('tier').value = plan;
+        document.getElementById('selectedPlanName').innerText = plan;
+        document.getElementById('regFormContainer').style.display = 'block';
+        document.getElementById('regFormContainer').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+
+        e.preventDefault();
+        const email = document.getElementById('reg_email').value;
+        const password = document.getElementById('reg_password').value;
+        const full_name = document.getElementById('fullname').value;
+        const subscription_tier = document.getElementById('tier').value;
+
+        try {
+            const res = await fetch('/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, full_name, subscription_tier })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // If Paid Plan -> Redirect to Checkout
+                const tier = document.getElementById('tier').value;
+                if (tier !== 'BASIC') {
+                    const priceId = PRICES[tier];
+                    if (priceId) {
+                        // Call Backend to get Checkout URL
+                        try {
+                            const checkoutRes = await fetch('/payment/create-checkout-session', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ price_id: priceId, user_email: email })
+                            });
+                            const checkoutData = await checkoutRes.json();
+                            if (checkoutData.url) {
+                                window.location.href = checkoutData.url;
+                                return;
+                            }
+                        } catch (e) {
+                            console.error("Payment Init Failed", e);
+                            alert("Payment initialization failed. Account created as Basic.");
+                        }
+                    }
+                }
+
+                alert('Account created! Please login.');
+                window.location.href = '/login';
+            } else {
+                const err = await res.json();
+                alert('Registration failed: ' + (err.detail || err.message));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error registering');
+        }
+    });
+</script>
+
+
+<style>
+    .pricing-card {
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .pricing-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .price {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 1rem 0;
+        color: var(--text-primary);
+    }
+
+    .price span {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        font-weight: normal;
+    }
+
+    .pricing-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0;
+        text-align: left;
+        width: 100%;
+    }
+
+    .pricing-card ul li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-secondary);
+    }
+
+    .pricing-card ul li:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}

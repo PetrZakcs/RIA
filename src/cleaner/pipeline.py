@@ -40,12 +40,19 @@ class DataCleaner:
         clean_ad = CleanPropertyAd(
             source_url=raw.source_url,
             source_portal=raw.source_portal,
+            # Display Data
+            title=raw.title,
+            locality=raw.location_raw,
+            images=raw.images,
+
+            
             price_czk=price,
             floor_area_m2=area,
             layout_normalized=layout,
             # Defaults
             property_type=PropertyType.APARTMENT 
         )
+
         
         # Derived metrics
         clean_ad.calculate_price_per_m2()

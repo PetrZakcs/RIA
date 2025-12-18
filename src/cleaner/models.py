@@ -16,7 +16,13 @@ class CleanPropertyAd(BaseModel):
     source_url: str
     source_portal: str
     
+    # Display Data
+    title: Optional[str] = None
+    locality: Optional[str] = None
+    images: Optional[list[str]] = None
+    
     # Core numeric data
+
     price_org_czk: Optional[float] = None # Cena původní
     price_czk: Optional[float] = None     # Cena (např. po slevě nebo očištěná)
     price_per_m2: Optional[float] = None

@@ -1,43 +1,69 @@
 {% extends "index.html" %}
 
 {% block results %}
-<div class="results-container">
-    <h2>Analysis Results for: <span class="highlight">"{{ prompt }}"</span></h2>
+{% if results %}
+<p>Nalezeno {{ results|length }} nemovitostí. Analyzováno na základě nativního API hledání.</p>
+<div class="cards-grid">
+    {% for item in results %}
+    <div class="card property-card" onclick="window.open('{{ item.ad.source_url }}', '_blank')"
+        style="cursor: pointer;">
 
-    <div class="cards-grid">
-        {% for item in results %}
-        <div class="card {% if item.metrics.is_good_deal %}recommended{% endif %}">
-            {% if item.metrics.is_good_deal %}
-            <div class="tag">💎 Top Pick</div>
-            {% endif %}
+        <!-- Image -->
+        <div class="card-image">
+            <img src="{{ item.ad.images[0] if item.ad.images else 'https://via.placeholder.com/300x200?text=No+Image' }}"
+                loading="lazy" alt="Property">
+        </div>
 
-            <div class="card-header">
-                <h3>{{ item.ad.layout_normalized or 'Flat' }} · {{ item.ad.floor_area_m2 }} m²</h3>
-                <span class="price">{{ "{:,.0f}".format(item.ad.price_czk).replace(',', ' ') }} CZK</span>
+        <!-- Content -->
+        <div class="card-content">
+            <h3><a href="{{ item.ad.source_url }}" target="_blank">{{ item.ad.title }}</a></h3>
+            <p class="location">📍 {{ item.ad.locality }}</p>
+
+            <!-- Rating Moved Here -->
+            <p
+                style="font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 0.5rem; color: {{ 'var(--success-color)' if item.metrics.is_good_deal else '#777' }}">
+                <strong>Hodnocení:</strong> {{ 'Výborná (A)' if item.metrics.is_good_deal else 'Ostatní (B)' }}
+            </p>
+
+
+            <div class="stats-row">
+                <div>
+                    <span class="label">Cena</span>
+                    <span class="value">{{ "{:,}".format(item.ad.price_czk).replace(',', ' ') }} Kč</span>
+                </div>
+                <div>
+                    <span class="label">Odh. nájem</span>
+                    <span class="value">{{ "{:,}".format(item.metrics.estimated_annual_rent_czk // 12).replace(',', ' ')
+                        }} /měs</span>
+                </div>
             </div>
 
-            <div class="card-stats">
-                <div class="stat">
-                    <span class="label">Gross Yield</span>
-                    <span class="value {% if item.metrics.is_good_deal %}good-yield{% endif %}">{{
-                        item.metrics.gross_yield_percent }}%</span>
+            <div class="stats-row highlight">
+                <div>
+                    <span class="label">Nájem/m²</span>
+                    <span class="value">{{ item.metrics.monthly_rent_per_m2 }} Kč/m²</span>
                 </div>
-                <div class="stat">
-                    <span class="label">Est. Rent</span>
-                    <span class="value">{{ "{:,.0f}".format(item.metrics.estimated_annual_rent_czk / 12).replace(',', '
-                        ') }} /mo</span>
-                </div>
-                <div class="stat">
-                    <span class="label">Distance</span>
-                    <span class="value">{{ item.ad.dist_center_km }} km</span>
+                <div>
+                    <span class="label">Tržní Průměr</span>
+                    <span class="value">{{ "{:,}".format(item.metrics.market_sale_per_m2).replace(',', ' ') }}</span>
                 </div>
             </div>
 
-            <div class="card-actions">
-                <a href="{{ item.ad.source_url }}" target="_blank" class="btn-outline">View Listing</a>
+            <div style="margin-top:0.5rem; text-align:right;">
+                <span class="label">vs Trh: </span>
+                <span
+                    style="font-weight:bold; color: {{ 'var(--success-color)' if item.metrics.undervaluation_percent > 0 else 'var(--danger-color)' }}">
+                    {{ "{:+.1f}".format(item.metrics.undervaluation_percent) }}%
+                </span>
             </div>
         </div>
-        {% endfor %}
     </div>
+    {% endfor %}
 </div>
+{% else %}
+<div class="no-results">
+    <p>Žádné výsledky. Zkuste jiný dotaz (např. "Byt v Praze do 5M").</p>
+</div>
+{% endif %}
+
 {% endblock %}
