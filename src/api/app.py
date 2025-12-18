@@ -21,10 +21,21 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # Imports for DB & Auth
-from src.database.session import engine, Base
-from src.api.routes import auth
-# Create Tables
-Base.metadata.create_all(bind=engine)
+# WRAPPED IN TRY/EXCEPT FOR VERCEL DEBUGGING
+DB_ERROR = None
+try:
+    from src.database.session import engine, Base
+    from src.api.routes import auth
+    # Create Tables
+    # This might fail if DB Connection is bad (Timeout, Password)
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables verified.")
+except Exception as e:
+    DB_ERROR = traceback.format_exc()
+    logger.error(f"Database Startup Error: {DB_ERROR}")
+    # We continue, so Vercel doesn't crash immediately. 
+    # Routes relying on DB will fail, but Home will show error.
+
 
 # Core Logic imports
 from src.harvester.api_engine import SrealityApiEngine
@@ -80,11 +91,14 @@ except Exception as e:
 async def home(request: Request):
     # IF IMPORTS FAILED, SHOW ERROR ON HOMEPAGE
     if IMPORT_ERROR:
-        # ... (error handling preserved in simple return if needed, unlikely here since imported)
-        pass 
-    if IMPORT_ERROR:
-         return HTMLResponse(f"<h1>Startup Error</h1><pre>{IMPORT_ERROR}</pre>", status_code=500)
+         return HTMLResponse(f"<h1>Startup Import Error</h1><pre>{IMPORT_ERROR}</pre>", status_code=500)
+    
+    # IF DATABASE FAILED
+    if 'DB_ERROR' in globals() and DB_ERROR:
+         return HTMLResponse(f"<h1>Database Connection Error</h1><p>Failed to connect to Supabase.</p><pre>{DB_ERROR}</pre>", status_code=500)
+
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
