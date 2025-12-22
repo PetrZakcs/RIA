@@ -214,6 +214,7 @@ class SrealityApiEngine:
 
                     
                     ad = RawPropertyAd(
+                        hash_id=hash_id,
                         source_url=link,
                         source_portal="sreality",
                         title=title,
@@ -237,3 +238,20 @@ class SrealityApiEngine:
             logger.error(f"API Error: {e}")
             
         return results
+
+    async def get_listing_detail(self, hash_id: int) -> Optional[str]:
+        """
+        Fetches full description text for a property.
+        """
+        try:
+            url = f"{self.BASE_URL}/cs/v2/estates/{hash_id}"
+            resp = await self.client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                # Text is usually in 'text_value' or 'description'
+                # Sreality API V2: name, text, items...
+                return data.get("text", {}).get("value", "")
+        except Exception as e:
+            logger.error(f"Failed to fetch detail {hash_id}: {e}")
+        return None
+

@@ -20,30 +20,7 @@
 
 
     <script>
-        // Check Auth State
-        document.addEventListener("DOMContentLoaded", () => {
-            const token = localStorage.getItem('access_token');
-            const navAuth = document.getElementById('nav-auth');
-
-            if (token) {
-                navAuth.innerHTML = `
-                    <span style="margin-right:1rem;color:var(--text-secondary);">Přihlášen</span>
-                    <a href="#" onclick="logout()">Odhlásit</a>
-                `;
-            } else {
-                navAuth.innerHTML = `
-                    <a href="/login" class="btn-text">Přihlásit</a>
-                    <a href="/register" class="btn-primary-sm">Registrovat</a>
-                `;
-            }
-        });
-
-        function logout() {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('user_tier');
-            window.location.href = '/login';
-        }
-
+        // No auth required
     </script>
 </head>
 
@@ -55,7 +32,6 @@
             <nav id="main-nav">
                 <a href="/dashboard">Můj Profil</a> <!-- Renamed from Dashboard to mirror context -->
                 <a href="/">Vyhledávání</a>
-                <span id="nav-auth"></span>
             </nav>
 
         </header>

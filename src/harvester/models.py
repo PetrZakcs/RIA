@@ -9,6 +9,7 @@ class RawPropertyAd(BaseModel):
     """
     source_url: str
     source_portal: str
+    hash_id: int # Unique ID from portal (critical for deduplication)
     scraped_at: datetime = Field(default_factory=datetime.now)
     
     # Raw extracted fields (can be None if parsing fails)

@@ -31,24 +31,9 @@
     document.addEventListener("DOMContentLoaded", () => {
         // Auto-fill logic
         const pendingPrompt = localStorage.getItem('pending_prompt');
-        const urlParams = new URLSearchParams(window.location.search);
-        const autoSearch = urlParams.get('auto_search');
-        const token = localStorage.getItem('access_token');
-
-        if (token && autoSearch && pendingPrompt) {
+        if (pendingPrompt) {
             document.getElementById('promptInput').value = pendingPrompt;
-            localStorage.removeItem('pending_prompt'); // Clear it
-            document.getElementById('searchForm').submit();
-        }
-    });
-
-    document.getElementById('searchForm').addEventListener('submit', (e) => {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            e.preventDefault();
-            const val = document.getElementById('promptInput').value;
-            localStorage.setItem('pending_prompt', val);
-            window.location.href = '/register';
+            localStorage.removeItem('pending_prompt');
         }
     });
 </script>

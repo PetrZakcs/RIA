@@ -49,13 +49,23 @@
                 </div>
             </div>
 
-            <div style="margin-top:0.5rem; text-align:right;">
-                <span class="label">vs Trh: </span>
-                <span
-                    style="font-weight:bold; color: {{ 'var(--success-color)' if item.metrics.undervaluation_percent > 0 else 'var(--danger-color)' }}">
-                    {{ "{:+.1f}".format(item.metrics.undervaluation_percent) }}%
-                </span>
+            <div style="margin-top:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+                <!-- AI Button -->
+                <button class="btn-secondary"
+                    style="font-size: 0.8rem; padding: 0.3rem 0.8rem; background: linear-gradient(135deg, #6e8efb, #a777e3); color:white; border:none;"
+                    onclick="analyzeProperty('{{ item.ad.source_url.split('/')[-1] }}', '{{ item.ad.title|escape }}', {{ item.ad.price_raw|replace(' ', '')|int }}, {{ item.metrics.gross_yield_percent }}); event.stopPropagation();">
+                    ✨ AI Analýza
+                </button>
+
+                <div>
+                    <span class="label">vs Trh: </span>
+                    <span
+                        style="font-weight:bold; color: {{ 'var(--success-color)' if item.metrics.undervaluation_percent > 0 else 'var(--danger-color)' }}">
+                        {{ "{:+.1f}".format(item.metrics.undervaluation_percent) }}%
+                    </span>
+                </div>
             </div>
+
         </div>
     </div>
     {% endfor %}
@@ -66,4 +76,90 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<!-- AI Modal -->
+<div id="ai-modal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div class="card"
+        style="width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; background:white; position:relative;">
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid #eee; padding-bottom:0.5rem;">
+            <h2
+                style="margin:0; background: -webkit-linear-gradient(45deg, #6e8efb, #a777e3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                AI Investiční Analýza 🧠</h2>
+            <button onclick="document.getElementById('ai-modal').style.display='none'"
+                style="border:none; background:none; font-size:2rem; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <div id="ai-content" style="min-height:200px;">
+            <div style="text-align:center; padding:2rem;">
+                <div class="spinner" style="font-size:2rem;">🤖</div>
+                <p>Analyzuji inzerát, počkejte prosím...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function analyzeProperty(hashId, title, price, yieldPct) {
+        const modal = document.getElementById('ai-modal');
+        const content = document.getElementById('ai-content');
+        modal.style.display = 'flex';
+        content.innerHTML = `
+        <div style="text-align:center; padding:2rem;">
+            <div style="font-size:3rem; margin-bottom:1rem;">🤖</div>
+            <p style="font-size:1.1rem; color:#666;">Načítám detail inzerátu a provádím SWOT analýzu...</p>
+        </div>
+    `;
+
+        try {
+            const resp = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hash_id: parseInt(hashId), title: title, price: price, yield_pct: yieldPct })
+            });
+            const data = await resp.json();
+
+            if (data.error) {
+                content.innerHTML = `<p style="color:var(--danger-color); text-align:center; padding:2rem;"><strong>Chyba:</strong> ${data.error}</p>`;
+                return;
+            }
+
+            // Render Result
+            let html = `
+            <div style="background:var(--bg-color); padding:1rem; border-radius:8px; margin-bottom:1.5rem; text-align:center;">
+                <div style="font-size:1.2rem; font-weight:bold; margin-bottom:0.5rem;">Celkové Skóre</div>
+                <div style="font-size:2.5rem; font-weight:800; color:${data.score > 75 ? 'var(--success-color)' : (data.score < 50 ? 'var(--danger-color)' : 'orange')}">
+                    ${data.score}/100
+                </div>
+                <p style="margin-bottom:0; font-style:italic;">"${data.verdict}"</p>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+                <div style="background:#f0fff4; padding:1rem; border-radius:8px; border:1px solid #c6f6d5;">
+                    <h3 style="color:#276749; margin-top:0;">✅ Silné stránky</h3>
+                    <ul style="padding-left:1.2rem; margin-bottom:0;">
+                        ${data.strengths.map(s => `<li>${s}</li>`).join('')}
+                    </ul>
+                </div>
+                <div style="background:#fff5f5; padding:1rem; border-radius:8px; border:1px solid #fed7d7;">
+                    <h3 style="color:#9b2c2c; margin-top:0;">❌ Rizika / Slabiny</h3>
+                    <ul style="padding-left:1.2rem; margin-bottom:0;">
+                        ${data.weaknesses.map(s => `<li>${s}</li>`).join('')}
+                    </ul>
+                </div>
+            </div>
+            <div style="margin-top:1rem; text-align:center; font-size:0.8rem; color:#999;">
+                Generováno AI modelem (GPT-4o/Mock). Neslouží jako finanční poradenství.
+            </div>
+        `;
+            content.innerHTML = html;
+
+        } catch (e) {
+            content.innerHTML = `<p style="color:red; text-align:center;">Chyba komunikace se serverem. Zkuste to znovu.</p>`;
+            console.error(e);
+        }
+    }
+</script>
 {% endblock %}
